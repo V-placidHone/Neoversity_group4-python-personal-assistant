@@ -10,6 +10,7 @@ from uuid import UUID, uuid4
 from datetime import datetime
 
 from src.config.constants import default_date_format
+from src.core.validators import is_phone, normalize_phone, is_email
 
 
 class Field:
@@ -86,8 +87,12 @@ class Phone(Field):
         """
         if not value or not value.strip():
             raise ValueError("Phone number cannot be empty")
-        # Remove common separators for storage
-        cleaned_value = value.strip().replace("-", "").replace(" ", "").replace("(", "").replace(")", "")
+
+        # Validate format (raises InvalidPhoneError on failure)
+        is_phone(value.strip())
+
+        # Normalize for storage
+        cleaned_value = normalize_phone(value)
         super().__init__(cleaned_value)
 
 
@@ -110,8 +115,10 @@ class Email(Field):
         """
         if not value or not value.strip():
             raise ValueError("Email cannot be empty")
-        if "@" not in value or "." not in value.split("@")[-1]:
-            raise ValueError("Invalid email format")
+
+        # Validate format (raises InvalidEmailError on failure)
+        is_email(value.strip())
+
         super().__init__(value.strip().lower())
 
 
@@ -163,7 +170,9 @@ class Birthday(Field):
                     raise ValueError("Invalid date format")
                 super().__init__(date_obj)
             except ValueError:
-                raise ValueError("Invalid birthday format. Use DD.MM.YYYY or YYYY-MM-DD")
+                raise ValueError(
+                    "Invalid birthday format. Use DD.MM.YYYY or YYYY-MM-DD"
+                )
         else:
             super().__init__(None)
 
@@ -187,6 +196,7 @@ class Birthday(Field):
         """
         return self.value
 
+
 class Contact:
     """
     Main Contact class representing a person's contact information.
@@ -197,13 +207,13 @@ class Contact:
     """
 
     def __init__(
-            self,
-            name: str,
-            phone: Optional[str] = None,
-            email: Optional[str] = None,
-            address: Optional[str] = None,
-            birthday: Optional[str] = None,
-            contact_id: Optional[UUID] = None,
+        self,
+        name: str,
+        phone: Optional[str] = None,
+        email: Optional[str] = None,
+        address: Optional[str] = None,
+        birthday: Optional[str] = None,
+        contact_id: Optional[UUID] = None,
     ) -> None:
         """
         Initialize a Contact instance.
@@ -246,12 +256,12 @@ class Contact:
             Dictionary containing all contact fields with their values
         """
         return {
-            "id": self.id,
+            "id": str(self.id),
             "name": str(self.name),
             "phone": str(self.phone) if self.phone else None,
             "email": str(self.email) if self.email else None,
             "address": str(self.address) if self.address else None,
-            "birthday": str(self.birthday) if self.birthday else None
+            "birthday": str(self.birthday) if self.birthday else None,
         }
 
     @classmethod
@@ -278,7 +288,7 @@ class Contact:
             email=data.get("email"),
             address=data.get("address"),
             birthday=data.get("birthday"),
-            contact_id=data.get("id")
+            contact_id=UUID(str(data.get("id"))) if data.get("id") else None,
         )
 
     def __str__(self) -> str:
@@ -291,10 +301,7 @@ class Contact:
         Returns:
             Formatted string with all contact information
         """
-        lines = [
-            f"Contact ID: {str(self.id)}",
-            f"Name: {self.name}"
-        ]
+        lines = [f"Contact ID: {str(self.id)}", f"Name: {self.name}"]
 
         if self.phone:
             lines.append(f"Phone: {self.phone}")

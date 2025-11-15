@@ -60,10 +60,10 @@ def is_phone(value: str) -> bool:
         raise InvalidPhoneError(str(value))
 
     # Remove common phone number formatting characters
-    cleaned = re.sub(r'[\s\-\(\)\+]', '', value.strip())
+    cleaned = re.sub(r"[\s\-\(\)\+]", "", value.strip())
 
     # Check if the result contains exactly 10 digits
-    if not re.match(r'^\d{10}$', cleaned):
+    if not re.match(r"^\d{10}$", cleaned):
         raise InvalidPhoneError(value)
 
     return True
@@ -98,10 +98,10 @@ def parse_birthday(value: str) -> Optional[datetime]:
 
     # List of date formats to try, in order of preference
     date_formats = [
-        '%d.%m.%Y',    # DD.MM.YYYY (European)
-        '%Y-%m-%d',    # YYYY-MM-DD (ISO)
-        '%d/%m/%Y',    # DD/MM/YYYY
-        '%m/%d/%Y',    # MM/DD/YYYY (US)
+        "%d.%m.%Y",  # DD.MM.YYYY (European)
+        "%Y-%m-%d",  # YYYY-MM-DD (ISO)
+        "%d/%m/%Y",  # DD/MM/YYYY
+        "%m/%d/%Y",  # MM/DD/YYYY (US)
     ]
 
     parsed_date = None
@@ -118,24 +118,20 @@ def parse_birthday(value: str) -> Optional[datetime]:
     if parsed_date is None:
         raise InvalidBirthdayError(
             value,
-            "Could not parse date. Supported formats: DD.MM.YYYY, YYYY-MM-DD, DD/MM/YYYY, MM/DD/YYYY"
+            "Could not parse date. Supported formats: DD.MM.YYYY, YYYY-MM-DD, DD/MM/YYYY, MM/DD/YYYY",
         )
 
     # Validate that the date is not in the future
     current_date = datetime.now()
     if parsed_date > current_date:
-        raise InvalidBirthdayError(
-            value,
-            "Birthday cannot be in the future"
-        )
+        raise InvalidBirthdayError(value, "Birthday cannot be in the future")
 
     # Validate that the date is not more than 150 years ago (reasonable age limit)
     max_age_years = 150
     min_date = datetime(current_date.year - max_age_years, 1, 1)
     if parsed_date < min_date:
         raise InvalidBirthdayError(
-            value,
-            f"Birthday cannot be more than {max_age_years} years ago"
+            value, f"Birthday cannot be more than {max_age_years} years ago"
         )
 
     return parsed_date
@@ -154,7 +150,7 @@ def normalize_phone(value: str) -> str:
     Returns:
         A string containing only the digits of the phone number
     """
-    return re.sub(r'[\s\-\(\)\+]', '', value.strip())
+    return re.sub(r"[\s\-\(\)\+]", "", value.strip())
 
 
 def format_phone(value: str) -> str:

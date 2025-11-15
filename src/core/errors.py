@@ -8,6 +8,7 @@ making error handling more precise and informative throughout the application.
 from typing import Optional
 from uuid import UUID
 
+
 class ValidationError(Exception):
     """
     Base exception class for all validation-related errors.
@@ -45,7 +46,7 @@ class InvalidEmailError(ValidationError):
         """
         super().__init__(
             f"Invalid email format: '{email}'. Expected format: user@domain.com",
-            field_name="email"
+            field_name="email",
         )
         self.email = email
 
@@ -67,7 +68,7 @@ class InvalidPhoneError(ValidationError):
         """
         super().__init__(
             f"Invalid phone format: '{phone}'. Expected format: 10 digits (e.g., 1234567890)",
-            field_name="phone"
+            field_name="phone",
         )
         self.phone = phone
 

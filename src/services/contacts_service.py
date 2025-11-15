@@ -12,8 +12,9 @@ from uuid import UUID
 from src.core.models.contacts import Contact
 from src.core.errors import (
     ContactNotFoundError,
-    DuplicateContactError
+    DuplicateContactError,
 )
+from src.storage import default_store
 
 
 class ContactsService:
@@ -24,7 +25,7 @@ class ContactsService:
     handling validation, storage operations, and business logic.
     """
 
-    def __init__(self, store: Any) -> None:
+    def __init__(self, store: Any | None = None) -> None:
         """
         Initialize the ContactsService with a storage backend.
 
@@ -33,8 +34,10 @@ class ContactsService:
                    Expected interface:
                    - load() -> (contacts: List[Contact], notes: List[Note])
                    - save(contacts: List[Contact], notes: List[Note]) -> None
+                   If not provided, a shared default_store is used.
         """
-        self.store = store
+        # Use shared default_store if no explicit store provided
+        self.store = store or default_store
         self._contacts: List[Contact] = []
         self._load_contacts()
 
@@ -57,13 +60,8 @@ class ContactsService:
 
         This persists the current in-memory contact list to storage.
         """
-        # Load notes separately to preserve them
-        try:
-            _, notes = self.store.load()
-        except Exception:
-            notes = []
-
-        self.store.save(self._contacts, notes)
+        # Delegate persistence details to the store implementation
+        self.store.save_contacts(self._contacts)
 
     def get_all(self) -> List[Contact]:
         """
@@ -93,17 +91,17 @@ class ContactsService:
             DuplicateContactError: If a contact with the same name already exists
         """
         # Check if contact with this name already exists
-        name = contact_data.get('name', '').strip()
+        name = contact_data.get("name", "").strip()
         if self._find_by_name(name):
             raise DuplicateContactError(name)
 
         # Create new contact (validation happens in Contact.__init__)
         new_contact = Contact(
-            name=contact_data.get('name'),
-            phone=contact_data.get('phone'),
-            email=contact_data.get('email'),
-            address=contact_data.get('address'),
-            birthday=contact_data.get('birthday')
+            name=contact_data.get("name"),
+            phone=contact_data.get("phone"),
+            email=contact_data.get("email"),
+            address=contact_data.get("address"),
+            birthday=contact_data.get("birthday"),
         )
 
         # Add to list and save
@@ -138,19 +136,19 @@ class ContactsService:
             raise ContactNotFoundError(contact_id)
 
         # Check if new name conflicts with another contact
-        new_name = contact_data.get('name', '').strip()
+        new_name = contact_data.get("name", "").strip()
         existing = self._find_by_name(new_name)
         if existing and existing.id != contact_id:
             raise DuplicateContactError(new_name)
 
         # Create a new contact with updated data (preserving the ID)
         updated_contact = Contact(
-            name=contact_data.get('name'),
-            phone=contact_data.get('phone'),
-            email=contact_data.get('email'),
-            address=contact_data.get('address'),
-            birthday=contact_data.get('birthday'),
-            contact_id=contact_id
+            name=contact_data.get("name"),
+            phone=contact_data.get("phone"),
+            email=contact_data.get("email"),
+            address=contact_data.get("address"),
+            birthday=contact_data.get("birthday"),
+            contact_id=contact_id,
         )
 
         # Replace the old contact with the updated one
@@ -185,34 +183,34 @@ class ContactsService:
             raise ContactNotFoundError(contact_id)
 
         # Check if name update conflicts with another contact
-        if 'name' in updates:
-            new_name = updates['name'].strip()
+        if "name" in updates:
+            new_name = updates["name"].strip()
             existing = self._find_by_name(new_name)
             if existing and existing.id != contact_id:
                 raise DuplicateContactError(new_name)
 
         # Update individual fields using the contact's update methods
-        if 'name' in updates:
-            contact.name.value = updates['name'].strip()
+        if "name" in updates:
+            contact.name.value = updates["name"].strip()
 
-        if 'phone' in updates:
-            if updates['phone']:
-                contact.phone.value = updates['phone'].strip()
+        if "phone" in updates:
+            if updates["phone"]:
+                contact.phone.value = updates["phone"].strip()
             else:
                 contact.phone = None
 
-        if 'email' in updates:
-            if updates['email']:
-                contact.email.value = updates['email'].strip()
+        if "email" in updates:
+            if updates["email"]:
+                contact.email.value = updates["email"].strip()
             else:
                 contact.email = None
 
-        if 'address' in updates:
-            contact.address.value = updates['address'].strip() or ""
+        if "address" in updates:
+            contact.address.value = updates["address"].strip() or ""
 
-        if 'birthday' in updates:
-            if updates['birthday']:
-                contact.birthday.value = updates['birthday'].strip()
+        if "birthday" in updates:
+            if updates["birthday"]:
+                contact.birthday.value = updates["birthday"].strip()
             else:
                 contact.birthday.value = None
 
@@ -246,11 +244,11 @@ class ContactsService:
         return True
 
     def search(
-            self,
-            query: Optional[str] = None,
-            name: Optional[str] = None,
-            phone: Optional[str] = None,
-            email: Optional[str] = None
+        self,
+        query: Optional[str] = None,
+        name: Optional[str] = None,
+        phone: Optional[str] = None,
+        email: Optional[str] = None,
     ) -> List[Contact]:
         """
         Search for contacts based on various criteria.
@@ -277,10 +275,12 @@ class ContactsService:
             if query:
                 query_lower = query.lower()
                 if (
-                        query_lower in contact.name.value.lower() or
-                        (contact.phone and query_lower in contact.phone.value.lower()) or
-                        (contact.email and query_lower in contact.email.value.lower()) or
-                        (contact.address and query_lower in contact.address.value.lower())
+                    query_lower in contact.name.value.lower()
+                    or (contact.phone and query_lower in contact.phone.value.lower())
+                    or (contact.email and query_lower in contact.email.value.lower())
+                    or (
+                        contact.address and query_lower in contact.address.value.lower()
+                    )
                 ):
                     results.append(contact)
                     continue
@@ -294,7 +294,11 @@ class ContactsService:
             if phone and contact.phone and phone not in contact.phone.value.lower():
                 match = False
 
-            if email and contact.email and email.lower() not in contact.email.value.lower():
+            if (
+                email
+                and contact.email
+                and email.lower() not in contact.email.value.lower()
+            ):
                 match = False
 
             if match and (name or phone or email):
