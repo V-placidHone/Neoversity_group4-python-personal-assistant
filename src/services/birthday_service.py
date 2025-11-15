@@ -1,5 +1,6 @@
 # Provides birthday-related logic:
 #  - find upcoming birthdays within N days
+from typing import Any
 
 # src/services/birthday_service.py
 class BirthdayService:
